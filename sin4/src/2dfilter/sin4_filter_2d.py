@@ -1,0 +1,80 @@
+"""
+A python version of a low-pass-filter using sin^4 window function.
+Original version: Matlab @ Francios
+via Mengqi
+# Create the window for each timestep and apply to the data
+# 1) set this timestep as the center of 1fs window
+# 2) find left(tStart) and right boundary (tEnd) of this window with +/-0.5fs ==> tChosen
+# 3) calculate this window function
+#   - rescaled by (right boundary - left boundary)
+#   - shifted with left boundart
+#   - normalized by the sum
+# 4) do the dot production and sum (convolution step)
+# Note: when t is smaller than 0.5fs or larger than t[-1]-0.5fs the window witdh is smaller than 1fs
+"""
+
+import numpy as np
+import file_proc as fp
+
+
+def choseValues(tCenter, t, width):
+    """
+    find left(tStart) and right boundary (tEnd) of this window with +/-0.5fs ==> tChosen and the vals in that range
+    """
+    tval = tCenter
+    tStart = tval - width*0.5
+    tEnd = tval + width*0.5
+    itChosen = np.where((t >= tStart) & (t <= tEnd))
+    tChosen = t[itChosen]
+    return itChosen, tChosen
+
+
+def calcWindow(tChosen, itCenter, lwrite_window=False):
+    """
+    calculate this window function
+    - rescaled by (right boundary - left boundary)
+    - shifted with left boundart
+    - normalized by the sum
+    """
+    window = np.sin(np.pi*(tChosen-tChosen[0])/(tChosen[-1]-tChosen[0]))**4 # window function of 1fs
+    window /= window.sum()
+
+    if lwrite_window:
+        fout2 = "window_" + str(itCenter) + ".dat"
+        with open(fout2, 'w') as f2:
+            for x, y in zip(tChosen, window):
+                f2.write("{0:.8E}\t{1:.8E}\n".format(x, y))
+
+    return window
+
+def print_tChosen(tCenter, tChosen):
+    print("tChosen[0], tChosen[-1]: ", tChosen[0],  tChosen[-1])
+    print("tChosen[1]-tChosen[0]: ", tChosen[-1]-tChosen[0])
+
+
+####################
+## Main
+####################
+"""
+You need to modify:
+- the path of the 2d file you want to read in
+- the window width (1/(cutoff/2pi)): width
+- the output path of the filtered signal: fout1
+- set the third argument of calcWindow as true if you want to print out the window, it will generate window_*.dat in current directory
+search for xxx for the locations
+"""
+t, vals = fp.read_1d_file("") #xxx read in the signal
+width = 1*41.341374575751  #xxx fs to au
+
+fout1 = "" #xxx output path
+with open(fout1, 'w') as f1:
+    for it, tval in enumerate(t):
+        print("Processing data from " + str(it+1) + "it...")
+        itChosen, tChosen = choseValues(tval, t, width)
+        window = calcWindow(tChosen, it, False) #xxx set True if you want to print window
+
+        # apply window to the signal
+        valsChosen = vals[itChosen]
+        convVal = np.sum(valsChosen * window)
+
+        f1.write("{0:.6E}\t {1:.8E}\n".format(t[it], convVal))

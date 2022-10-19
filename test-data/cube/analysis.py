@@ -1,0 +1,125 @@
+from numpy import*
+import sys
+
+def calc_rhox (filename):
+    with open(filename, "r") as f:
+
+        # title lines
+        line = f.readline()
+        line = f.readline()    
+        
+        # natoms, dx, dy, dz
+        line = f.readline()
+        try:
+            vals = line.split()
+            natoms = int(vals[0])
+            xmin = float(vals[1])
+            ymin = float(vals[2])
+            zmin = float(vals[3])
+        except:
+            raise Exception ("Failed to parse natoms, rmin")
+        
+        # three lines containing nx, dx, etc
+        line = f.readline()
+        try:
+            vals = line.split()
+            nx = int(vals[0])
+            dx = float(vals[1])
+        except:
+            raise Exception ("Failed to parse nx, dx")
+        
+        line = f.readline()
+        try:
+            vals = line.split()
+            ny = int(vals[0])
+            dy = float(vals[2])
+        except:
+            raise Exception ("Failed to parse ny, dy")
+        
+        line = f.readline()
+        try:
+            vals = line.split()
+            nz = int(vals[0])
+            dz = float(vals[3])
+        except:
+            raise Exception ("Failed to parse nz, dz")
+        
+        # atom geometries
+        atoms = []
+        for ia in range(natoms):
+            line = f.readline()
+            vals = line.split()
+            try:
+                ielem = int(vals[0])
+                charge = float(vals[1])
+                xloc = float(vals[2])
+                yloc = float(vals[3])
+                zloc = float(vals[4])
+                atom = {'element':ielem, 'charge':charge, 'loc':[xloc, yloc, zloc]}
+                atoms.append(atom)
+            except:
+                raise Exception ("Failed to parse atom")
+            
+            
+        # volumetric data (density)
+        lines_flat = [float(item) for line in f for item in line.split()]
+            
+    # Pack into 3d array and int
+    rho = zeros((nx, ny, nz))
+    ic = -1
+    for ix in range(nx):
+        for iy in range(ny):
+            for iz in range(nz):
+                ic = ic + 1
+                rho[ix,iy,iz] = lines_flat[ic]
+                    
+    # compute number of electrons
+    nelec = sum(rho)*dx*dy*dz
+                    
+    xvals = []
+    rhox = []
+    for ix in range(nx-1):
+        x = xmin + ix*dx #(actual value of x)
+        xvals.append(x)
+        
+        intg = 0.0
+        for iy in range(ny-1):
+            for iz in range(nz-1):
+                intg = intg + rho[ix][iy][iz]*dz*dy
+
+        rhox.append(intg)
+
+    return xvals, rhox
+                
+
+
+
+
+nfiles = 1001
+dfile = 1
+filelist = [ 'fil.co.dpdt.'+str(i+1).zfill(10)+'.cube' for i in range(nfiles) ]
+outlist = [ 'x_fil_dpdt.'+str(i+1).zfill(10)+'.dat' for i in range(nfiles) ]
+
+
+# x, rhox_neutral = calc_rhox('./perm/bromoaminocyclohexane_neutral.cube')
+
+
+
+j = -1
+for j in range(len(filelist)):
+    fin = filelist[j]
+    x,rhox = calc_rhox(fin)
+    # difference (hole density)
+    # output
+    tmp = zip(x, rhox)
+    fout = outlist[j]
+        
+    with open(fout, "w") as f:
+        for val in tmp:
+            f.write("{0: .8e}   {1: .8e}\n".format(val[0], val[1]))
+
+    print("Finished with file {}".format(fin))
+
+
+
+    
