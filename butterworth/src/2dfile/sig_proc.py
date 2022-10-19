@@ -94,23 +94,3 @@ def calc_freqs(x, dt):
     return freqs, dk
 
 
-# ev = 27.2114
-# x, y = read_1d_file("ft_d.dat")
-# tau = 0
-# ecut = 20
-
-# dt = x[1] - x[0]
-# tmax = x[-1]
-# fs = int(1 / dt)
-# nyq = 0.5 * fs
-# cutoff = ecut / ev  #/ (2*np.pi)
-
-# # get the original FFT data
-# fft_ya = np.fft.fftshift(np.fft.fft(y))
-# freqs = np.fft.fftshift(np.fft.fftfreq(len(x), d=dt)) * 2 * np.pi 
-# write_1d_file(freqs, np.abs(fft_ya), "fw_d.dat")
-
-# yb = butter_low_pass_filter(y, nyq, cutoff, fs)
-# write_1d_file(x, yb, "filtered_ftd.dat")
-# fft_yb = np.fft.fftshift(np.fft.fft(yb))
-# write_1d_file(freqs, np.abs(fft_yb), "filtered_fwd.dat")

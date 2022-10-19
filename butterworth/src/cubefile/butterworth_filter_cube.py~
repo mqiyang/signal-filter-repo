@@ -1,0 +1,67 @@
+# this script read in the input file and apply the filter to the data
+# be mindful that the butterworth filter will make the tail of your data bad, so run longer that what you need
+# eg: run 130au if you need the data in 100au (it will depend the data you have)
+# via mengqi
+# ------------------------------
+# You need to specify:
+# - ecut: your cutoff energy in eV
+# - ecut2: need to specify if you want to use band pass, default to None for high/low
+# - dt: the time-interval in your data set
+# - itmin: the min time index for given data, it's default set 1 (it=1 ==> t=0)
+# - itmax: the max time index for given data
+# - molecule: the molecule name in the cubefile fname: eg, "co" in co.density.0000000001.cube
+# - ftype: the file type in the cubefile fname: eg, "density" in co.density.0000000001.cube
+# - fil_type: the type of the butterworth: "low" for low-pass, "high" for high-pass, "band" for band-pass
+# - output: it will automatically generates the filtered signal as fil.*.cube
+# You can search xxx for the part you can customize.
+
+import sig_proc as sp
+import file_proc as fp
+import numpy as np
+from scipy import signal 
+
+ev = 27.2114
+ecut = 20  #xxx you can change your cutoff energy here (eV)
+ecut2 = None #xxx need to specify when using band pass: [ecut:ecut2]
+dt = 0.06 #xxx the time-interval in your data set
+itmin = 1  #xxx the min time index for given data, it's default set 1 (it=1 ==> t=0)
+itmax = 1001  #xxx the max time index for given data
+molecule = '' #xxx eg, "co" in co.density.0000000001.cube
+ftype = '' #xxx eg, "density" in co.density.0000000001.cube
+fil_type = '' #xxx "low" for low-pass, "high" for high-pass, "band" for band-pass
+
+cutoff = ecut/ev
+cutoff2 = ecut2/ev if ecut2 else None
+fs = int(1/dt) * 2 * np.pi 
+
+# create the memmap 
+mmap_fname = "memmap.dat"
+fname = fp.get_cubefname(molecule,ftype, itmin)
+nx, ny, nz, data, meta = fp.read_cube(fname, 'angs') #get the size for the memmap
+mmap = np.memmap("mmap_fname",dtype='float32', mode='w+', shape=(itmax-itmin+1, nx*ny*nz))
+
+# read in the time-dependent cubefiles into memmap
+for it in range(itmin,itmax+1):
+    fname = fp.get_cubefname(molecule,ftype,it)
+    print("Reading content from {}".format(fname))
+    nx, ny, nz, data, meta = fp.read_cube(fname, 'angs')
+    mmap[it-1, :] = data
+print(mmap.shape)
+
+# apply filter for each element in the cubes
+mmap.flush()
+for iy in range(mmap.shape[1]):
+    y = mmap[:,iy]
+    fil_y = sp.apply_butter_filter(y, fil_type, fs, cutoff, sec_cut=cutoff2)
+    print("Filtering the #{} element".format(iy))
+    mmap[:, iy] = fil_y
+    mmap.flush()
+print(mmap.shape)
+
+# write back the filtered cube files
+for it in range(mmap.shape[0]):
+    fname = "fil."+ fp.get_cubefname(molecule,ftype,it+1)
+    print("Writing to {}".format(fname))
+    fp.write_file(np.reshape(mmap[it], (nx,ny,nz)), meta, fname, "real")
+
+
